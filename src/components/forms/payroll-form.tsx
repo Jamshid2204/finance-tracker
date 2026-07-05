@@ -36,10 +36,10 @@ export function PayrollForm({ employees, onSubmit, onCancel, loading }: PayrollF
     },
   })
 
-  const baseSalary = watch("base_salary") || 0
-  const bonus = watch("bonus") || 0
-  const penalty = watch("penalty") || 0
-  const advance = watch("advance") || 0
+  const baseSalary = Number(watch("base_salary")) || 0
+  const bonus = Number(watch("bonus")) || 0
+  const penalty = Number(watch("penalty")) || 0
+  const advance = Number(watch("advance")) || 0
   const final = calculateFinalSalary(baseSalary, bonus, penalty, advance)
 
   return (

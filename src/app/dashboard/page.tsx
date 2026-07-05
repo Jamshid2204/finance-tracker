@@ -23,7 +23,7 @@ async function fetchDashboardStats() {
   const { data: monthPayrolls } = await supabase
     .from("payrolls").select("*, employee:employees(*)").eq("month", month).eq("year", year)
 
-  const monthly_expense = (monthPayrolls || []).reduce((sum: number, p: any) => sum + p.final_salary, 0)
+  const monthly_expense = (monthPayrolls || []).reduce((sum: number, p: any) => sum + Number(p.final_salary), 0)
   const paid_count = (monthPayrolls || []).filter((p: any) => p.status === "paid").length
   const unpaid_count = (monthPayrolls || []).filter((p: any) => p.status === "pending").length
 

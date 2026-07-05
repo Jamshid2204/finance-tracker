@@ -2,7 +2,7 @@
 
 import { Dialog, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PayrollForm } from "@/components/forms/payroll-form"
-import { PayrollFormData } from "@/lib/validations/payroll"
+import { PayrollFormData, calculateFinalSalary } from "@/lib/validations/payroll"
 import { Payroll, Employee } from "@/types"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -28,7 +28,7 @@ export function PayrollDialog({ open, onOpenChange, payroll }: PayrollDialogProp
 
   const handleSubmit = async (data: PayrollFormData) => {
     try {
-      const final_salary = data.base_salary + (data.bonus || 0) - (data.penalty || 0) - (data.advance || 0)
+      const final_salary = calculateFinalSalary(data.base_salary, data.bonus || 0, data.penalty || 0, data.advance || 0)
 
       if (payroll) {
         const { error } = await supabase

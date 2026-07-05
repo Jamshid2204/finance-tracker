@@ -32,7 +32,7 @@ export default function ReportsPage() {
         const items = payrolls || []
         results.push({
           month,
-          total: items.reduce((sum: number, p: any) => sum + p.final_salary, 0),
+          total: items.reduce((sum: number, p: any) => sum + Number(p.final_salary), 0),
           count: items.length,
           paid: items.filter((p: any) => p.status === "paid").length,
           pending: items.filter((p: any) => p.status === "pending").length,

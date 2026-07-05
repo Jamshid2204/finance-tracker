@@ -15,10 +15,10 @@ function isSupabaseConfigured(): boolean {
   )
 }
 
-function createDemoUser(): User {
+function createDemoUser(authUser?: { id?: string; email?: string }): User {
   return {
-    id: "demo-user",
-    email: "admin@demo.local",
+    id: authUser?.id || "demo-user",
+    email: authUser?.email || "admin@demo.local",
     role: "admin",
     employee_id: null,
     created_at: new Date().toISOString(),
@@ -52,9 +52,14 @@ export function useSession() {
             .from("users")
             .select("*")
             .eq("id", session.user.id)
-            .single()
+            .maybeSingle()
           if (mounted && profileResult?.data) {
             setUser(profileResult.data as User)
+            return
+          }
+          // Auth user exists but no profile in users table yet
+          if (mounted) {
+            setUser(createDemoUser({ id: session.user.id, email: session.user.email }))
             return
           }
         }
@@ -76,9 +81,9 @@ export function useSession() {
           .from("users")
           .select("*")
           .eq("id", session.user.id)
-          .single()
+          .maybeSingle()
         if (mounted) {
-          setUser((profile as User) || createDemoUser())
+          setUser((profile as User) || createDemoUser({ id: session.user.id, email: session.user.email }))
         }
       } else {
         if (mounted) setUser(isDemo.current ? createDemoUser() : null)
