@@ -67,7 +67,7 @@ export function useSession() {
         console.error("Session fetch error:", e)
       }
 
-      if (mounted) {
+      if (mounted && isDemo.current) {
         setUser(createDemoUser())
       }
     }
