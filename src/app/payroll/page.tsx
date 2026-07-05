@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Pagination } from "@/components/ui/pagination"
 import { PayrollDialog } from "@/components/dialogs/payroll-dialog"
+import { PaymentDialog } from "@/components/dialogs/payment-dialog"
 import { Payroll } from "@/types"
 import { formatCurrency, getMonthName, getCurrentMonth, getCurrentYear } from "@/lib/utils"
 import { Plus, Wallet } from "lucide-react"
@@ -22,6 +23,7 @@ export default function PayrollPage() {
   const [month] = useState(getCurrentMonth())
   const [year] = useState(getCurrentYear())
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [paymentPayroll, setPaymentPayroll] = useState<Payroll | null>(null)
   const supabase = createClient()
   const pageSize = 10
 
@@ -94,6 +96,7 @@ export default function PayrollPage() {
                       <TableHead>Avans</TableHead>
                       <TableHead>Yakuniy</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="w-[100px]">Amallar</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -108,6 +111,13 @@ export default function PayrollPage() {
                         <TableCell className="text-amber-600">-{formatCurrency(payroll.advance)}</TableCell>
                         <TableCell className="font-semibold">{formatCurrency(payroll.final_salary)}</TableCell>
                         <TableCell>{statusBadge(payroll.status)}</TableCell>
+                        <TableCell>
+                          {payroll.status === "pending" && payroll.advance < payroll.base_salary && (
+                            <Button size="sm" onClick={() => setPaymentPayroll(payroll)}>
+                              To'lash
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -138,6 +148,12 @@ export default function PayrollPage() {
       <PayrollDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+      />
+
+      <PaymentDialog
+        open={!!paymentPayroll}
+        onOpenChange={(open) => { if (!open) setPaymentPayroll(null) }}
+        payroll={paymentPayroll}
       />
     </AppLayout>
   )

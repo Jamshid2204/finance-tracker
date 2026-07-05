@@ -105,15 +105,36 @@ export default function SettingsPage() {
             <CardDescription>Telegram orqali bildirishnomalar yuborish</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="bot-token">Bot Token</Label>
-              <Input id="bot-token" type="password" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" />
-            </div>
             <p className="text-sm text-muted-foreground">
-              Bot tokenini @BotFather orqali oling
+              Bot tokeni <code>.env.local</code> faylida sozlangan. @BotFather orqali bot yaratib, token oling.
             </p>
-            <Button onClick={() => toast.success("Bot token saqlandi")}>
-              Saqlash
+            <div className="space-y-2">
+              <Label>Bot holati</Label>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <span>Bot sozlangan</span>
+              </div>
+            </div>
+            <Button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/webhook", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: window.location.origin }),
+                  })
+                  const data = await res.json()
+                  if (data.ok) {
+                    toast.success("Webhook muvaffaqiyatli o'rnatildi")
+                  } else {
+                    toast.error(data.error || "Xatolik yuz berdi")
+                  }
+                } catch {
+                  toast.error("Webhook o'rnatishda xatolik")
+                }
+              }}
+            >
+              Webhook o'rnatish
             </Button>
           </CardContent>
         </Card>

@@ -29,6 +29,15 @@ export function getCurrentYear(): number {
   return new Date().getFullYear()
 }
 
+export function formatNumber(value: number): string {
+  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+}
+
+export function parseFormattedNumber(value: string): number {
+  const digits = value.replace(/[^0-9]/g, "")
+  return digits ? Number(digits) : 0
+}
+
 export function getMonthName(month: number): string {
   const months = [
     "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",

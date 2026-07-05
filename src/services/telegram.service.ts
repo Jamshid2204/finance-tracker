@@ -62,20 +62,47 @@ export async function notifyPayrollCreated(employeeId: string, amount: number, m
   return sendTelegramNotification(employeeId, message)
 }
 
-export async function notifyPaymentMade(employeeId: string, amount: number) {
-  const message = `💰 <b>To'lov amalga oshirildi</b>\n\nBugun sizga <b>${amount.toLocaleString()} so'm</b> o'tkazildi.`
+export async function notifyPaymentMade(
+  employeeId: string,
+  amount: number,
+  options?: { baseSalary?: number; bonus?: number; penalty?: number; advance?: number; method?: string; note?: string }
+) {
+  let message = `💰 <b>Oylik maoshingiz berildi</b>\n\n`
+
+  if (options?.baseSalary) {
+    message += `Asosiy oylik: <b>${options.baseSalary.toLocaleString()} so'm</b>\n`
+  }
+  if (options?.bonus && options.bonus > 0) {
+    message += `Bonus: +${options.bonus.toLocaleString()} so'm\n`
+  }
+  if (options?.penalty && options.penalty > 0) {
+    message += `Jarima: -${options.penalty.toLocaleString()} so'm\n`
+  }
+  if (options?.advance && options.advance > 0) {
+    message += `Berilgan avans: -${options.advance.toLocaleString()} so'm\n`
+  }
+
+  message += `─────────────────\n`
+  message += `<b>To'langan: ${amount.toLocaleString()} so'm</b>\n`
+
+  const now = new Date()
+  message += `\nSana: ${now.toLocaleDateString("uz-UZ")}`
+  if (options?.method) message += `\nUsul: ${options.method}`
+  if (options?.note) message += `\nIzoh: ${options.note}`
 
   return sendTelegramNotification(employeeId, message)
 }
 
-export async function notifyBonus(employeeId: string, amount: number) {
-  const message = `🎉 <b>Bonus qo'shildi!</b>\n\nSizga <b>${amount.toLocaleString()} so'm</b> bonus qo'shildi.`
+export async function notifyBonus(employeeId: string, amount: number, note?: string) {
+  let message = `🎉 <b>Bonus qo'shildi!</b>\n\nSizga <b>${amount.toLocaleString()} so'm</b> bonus qo'shildi.`
+  if (note) message += `\n\nIzoh: ${note}`
 
   return sendTelegramNotification(employeeId, message)
 }
 
-export async function notifyPenalty(employeeId: string, amount: number) {
-  const message = `⚠️ <b>Jarima qo'llandi</b>\n\nSizga <b>${amount.toLocaleString()} so'm</b> jarima qo'llandi.`
+export async function notifyPenalty(employeeId: string, amount: number, note?: string) {
+  let message = `⚠️ <b>Jarima qo'llandi</b>\n\nSizga <b>${amount.toLocaleString()} so'm</b> jarima qo'llandi.`
+  if (note) message += `\n\nIzoh: ${note}`
 
   return sendTelegramNotification(employeeId, message)
 }

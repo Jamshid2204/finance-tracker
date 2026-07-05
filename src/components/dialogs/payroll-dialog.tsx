@@ -28,7 +28,7 @@ export function PayrollDialog({ open, onOpenChange, payroll }: PayrollDialogProp
 
   const handleSubmit = async (data: PayrollFormData) => {
     try {
-      const final_salary = calculateFinalSalary(data.base_salary, data.bonus || 0, data.penalty || 0, data.advance || 0)
+      const final_salary = calculateFinalSalary(data.base_salary, data.bonus || 0, data.penalty || 0, 0)
 
       if (payroll) {
         const { error } = await supabase
@@ -45,6 +45,42 @@ export function PayrollDialog({ open, onOpenChange, payroll }: PayrollDialogProp
 
         if (error) throw error
         toast.success("Oylik qo'shildi")
+
+        fetch("/api/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "payroll_created",
+            employee_id: data.employee_id,
+            amount: final_salary,
+            month: data.month,
+            year: data.year,
+          }),
+        })
+
+        if ((data.bonus || 0) > 0) {
+          fetch("/api/notify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "bonus",
+              employee_id: data.employee_id,
+              amount: data.bonus,
+            }),
+          })
+        }
+
+        if ((data.penalty || 0) > 0) {
+          fetch("/api/notify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "penalty",
+              employee_id: data.employee_id,
+              amount: data.penalty,
+            }),
+          })
+        }
       }
 
       queryClient.invalidateQueries({ queryKey: ["payrolls"] })

@@ -2,15 +2,15 @@
 
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { payrollSchema, PayrollFormData, calculateFinalSalary } from "@/lib/validations/payroll"
+import { payrollSchema, PayrollFormData } from "@/lib/validations/payroll"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Employee } from "@/types"
 import { Loader2 } from "lucide-react"
-import { getCurrentMonth, getCurrentYear, formatCurrency } from "@/lib/utils"
-import { useState } from "react"
+import { getCurrentMonth, getCurrentYear, formatNumber, parseFormattedNumber } from "@/lib/utils"
+import { useEffect, useState } from "react"
 
 interface PayrollFormProps {
   employees: Employee[]
@@ -24,6 +24,7 @@ export function PayrollForm({ employees, onSubmit, onCancel, loading }: PayrollF
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<PayrollFormData>({
     resolver: zodResolver(payrollSchema) as any,
@@ -36,11 +37,17 @@ export function PayrollForm({ employees, onSubmit, onCancel, loading }: PayrollF
     },
   })
 
-  const baseSalary = Number(watch("base_salary")) || 0
-  const bonus = Number(watch("bonus")) || 0
-  const penalty = Number(watch("penalty")) || 0
-  const advance = Number(watch("advance")) || 0
-  const final = calculateFinalSalary(baseSalary, bonus, penalty, advance)
+  const employeeId = watch("employee_id")
+  const [baseStr, setBaseStr] = useState("")
+
+  useEffect(() => {
+    if (!employeeId) return
+    const employee = employees.find((e) => e.id === employeeId)
+    if (employee?.salary) {
+      setValue("base_salary", employee.salary)
+      setBaseStr(formatNumber(employee.salary))
+    }
+  }, [employeeId, employees, setValue])
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -70,30 +77,19 @@ export function PayrollForm({ employees, onSubmit, onCancel, loading }: PayrollF
 
       <div className="space-y-2">
         <Label htmlFor="base_salary">Asosiy oylik (so'm)</Label>
-        <Input id="base_salary" type="number" {...register("base_salary")} placeholder="5000000" />
+        <Input
+          id="base_salary"
+          type="text"
+          inputMode="numeric"
+          value={baseStr}
+          onChange={(e) => {
+            const raw = parseFormattedNumber(e.target.value)
+            setBaseStr(formatNumber(raw))
+            setValue("base_salary", raw)
+          }}
+          placeholder="Misol: 5 000 000"
+        />
         {errors.base_salary && <p className="text-sm text-destructive">{errors.base_salary.message}</p>}
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="bonus">Bonus</Label>
-          <Input id="bonus" type="number" {...register("bonus")} placeholder="0" />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="penalty">Jarima</Label>
-          <Input id="penalty" type="number" {...register("penalty")} placeholder="0" />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="advance">Avans</Label>
-          <Input id="advance" type="number" {...register("advance")} placeholder="0" />
-        </div>
-      </div>
-
-      <div className="rounded-lg border bg-muted p-4">
-        <div className="flex justify-between text-sm">
-          <span>Yakuniy hisob:</span>
-          <span className="font-bold text-lg">{formatCurrency(final)}</span>
-        </div>
       </div>
 
       <div className="flex justify-end gap-3 pt-4">
