@@ -56,3 +56,17 @@ export async function createClient() {
     }
   )
 }
+
+export function createAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !key) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY sozlanmagan")
+  }
+
+  const { createClient } = require("@supabase/supabase-js")
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}

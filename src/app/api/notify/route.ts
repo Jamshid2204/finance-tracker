@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { notifyPayrollCreated, notifyPaymentMade, notifyBonus, notifyPenalty } from "@/services/telegram.service"
+import { notifyPayrollCreated, notifyPaymentMade, notifyBonus, notifyPenalty, notifyAttendance } from "@/services/telegram.service"
 
 export async function POST(request: Request) {
   try {
@@ -27,6 +27,12 @@ export async function POST(request: Request) {
         break
       case "penalty":
         result = await notifyPenalty(employee_id, amount, note)
+        break
+      case "attendance_arrived":
+        result = await notifyAttendance(employee_id, "arrived", note || "")
+        break
+      case "attendance_left":
+        result = await notifyAttendance(employee_id, "left", note || "")
         break
       default:
         return NextResponse.json({ ok: false, error: "Unknown notification type" }, { status: 400 })

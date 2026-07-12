@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AppLayout } from "@/components/layouts/app-layout"
-import { Users, DollarSign, CheckCircle, Clock, TrendingUp, UserPlus } from "lucide-react"
+import { Users, DollarSign, CheckCircle, Clock, TrendingUp, UserPlus, LogIn, LogOut } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { getCurrentMonth, getCurrentYear } from "@/lib/utils"
 
@@ -34,6 +34,19 @@ async function fetchDashboardStats() {
   const { data: newEmployees } = await supabase
     .from("employees").select("*").order("created_at", { ascending: false }).limit(5)
 
+  const today = new Date().toISOString().split("T")[0]
+  const { data: todayAttendance } = await supabase
+    .from("attendance")
+    .select("*, employee:employees(fullname)")
+    .eq("date", today)
+    .order("arrived_at", { ascending: true })
+
+  const attendanceStat = {
+    total: todayAttendance?.length || 0,
+    arrived: todayAttendance?.filter((a: any) => a.arrived_at).length || 0,
+    left: todayAttendance?.filter((a: any) => a.left_at).length || 0,
+  }
+
   return {
     total_employees: total_employees || 0,
     active_employees: active_employees || 0,
@@ -42,6 +55,8 @@ async function fetchDashboardStats() {
     unpaid_count,
     recent_payments: recentPayments || [],
     new_employees: newEmployees || [],
+    today_attendance: todayAttendance || [],
+    attendance_stat: attendanceStat,
     month,
     year,
   }
@@ -56,8 +71,8 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
               <CardHeader className="pb-2">
                 <Skeleton className="h-4 w-24" />
@@ -111,6 +126,20 @@ export default function DashboardPage() {
       color: "text-amber-600",
       bg: "bg-amber-100 dark:bg-amber-900",
     },
+    {
+      title: "Bugun kelganlar",
+      value: data?.attendance_stat?.arrived || 0,
+      icon: LogIn,
+      color: "text-indigo-600",
+      bg: "bg-indigo-100 dark:bg-indigo-900",
+    },
+    {
+      title: "Ishda (hali ketmagan)",
+      value: (data?.attendance_stat?.arrived || 0) - (data?.attendance_stat?.left || 0),
+      icon: TrendingUp,
+      color: "text-violet-600",
+      bg: "bg-violet-100 dark:bg-violet-900",
+    },
   ]
 
   return (
@@ -118,7 +147,7 @@ export default function DashboardPage() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
           {stats.map((stat) => {
             const Icon = stat.icon
             return (
@@ -139,7 +168,7 @@ export default function DashboardPage() {
           })}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Oxirgi to'lovlar</CardTitle>
@@ -163,6 +192,33 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <p className="text-muted-foreground">Hali to'lovlar yo'q</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Bugungi davomat</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {data?.today_attendance && data.today_attendance.length > 0 ? (
+                <div className="space-y-3">
+                  {data.today_attendance.map((a: any) => (
+                    <div key={a.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <LogIn className={`h-4 w-4 ${a.left_at ? 'text-muted-foreground' : 'text-green-600'}`} />
+                        <p className="font-medium">{a.employee?.fullname}</p>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {a.arrived_at && new Date(a.arrived_at).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}
+                        {a.left_at && ` - ${new Date(a.left_at).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}`}
+                        {!a.left_at && " (ishda)"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Bugun hali hech kim kelmagan</p>
               )}
             </CardContent>
           </Card>

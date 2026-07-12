@@ -12,6 +12,8 @@ import {
   CreditCard,
   FileText,
   Settings,
+  TrendingUp,
+  CalendarCheck,
   ChevronLeft,
   X,
 } from "lucide-react"
@@ -24,6 +26,8 @@ const iconMap: Record<string, React.ReactNode> = {
   CreditCard: <CreditCard className="h-5 w-5" />,
   FileText: <FileText className="h-5 w-5" />,
   Settings: <Settings className="h-5 w-5" />,
+  TrendingUp: <TrendingUp className="h-5 w-5" />,
+  CalendarCheck: <CalendarCheck className="h-5 w-5" />,
 }
 
 interface SidebarProps {

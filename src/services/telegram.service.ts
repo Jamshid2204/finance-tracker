@@ -106,3 +106,52 @@ export async function notifyPenalty(employeeId: string, amount: number, note?: s
 
   return sendTelegramNotification(employeeId, message)
 }
+
+export async function notifyAttendance(employeeName: string, type: "arrived" | "left", time: string) {
+  const { createAdminClient } = await import("@/lib/supabase/server")
+  const supabase = createAdminClient()
+
+  const { data: admins } = await supabase
+    .from("users")
+    .select("employee_id")
+    .in("role", ["owner", "admin"])
+
+  if (!admins?.length) return { status: "failed", error: "No admins found" }
+
+  const adminEmployeeIds = admins.map((a: any) => a.employee_id).filter(Boolean)
+
+  const botToken = process.env.TELEGRAM_BOT_TOKEN
+  if (!botToken) return { status: "failed", error: "Bot token not configured" }
+
+  const { data: adminEmployees } = await supabase
+    .from("employees")
+    .select("fullname, telegram_chat_id")
+    .in("id", adminEmployeeIds)
+
+  if (!adminEmployees?.length) return { status: "failed", error: "No admin chat IDs found" }
+
+  const emoji = type === "arrived" ? "🟢" : "🔴"
+  const label = type === "arrived" ? "keldi" : "ketdi"
+
+  const message = `${emoji} <b>${employeeName}</b> ishga <b>${label}</b>\n\nVaqt: ${time}`
+
+  for (const admin of adminEmployees) {
+    if (!admin.telegram_chat_id) continue
+
+    try {
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: admin.telegram_chat_id,
+          text: message,
+          parse_mode: "HTML",
+        }),
+      })
+    } catch {
+      // ignore per-admin errors
+    }
+  }
+
+  return { status: "sent" }
+}

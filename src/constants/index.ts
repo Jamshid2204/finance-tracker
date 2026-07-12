@@ -43,6 +43,8 @@ export const SIDEBAR_ITEMS = [
   { href: "/employees", label: "Xodimlar", icon: "Users", roles: ["owner", "admin", "hr"] },
   { href: "/payroll", label: "Oyliklar", icon: "Wallet", roles: ["owner", "admin", "accountant"] },
   { href: "/payments", label: "To'lovlar", icon: "CreditCard", roles: ["owner", "admin", "accountant"] },
+  { href: "/kpi", label: "KPI", icon: "TrendingUp", roles: ["owner", "admin", "hr", "accountant", "employee"] },
+  { href: "/attendance", label: "Davomat", icon: "CalendarCheck", roles: ["owner", "admin", "hr", "employee"] },
   { href: "/reports", label: "Hisobotlar", icon: "FileText", roles: ["owner", "admin", "accountant", "hr"] },
   { href: "/settings", label: "Sozlamalar", icon: "Settings", roles: ["owner", "admin"] },
 ] as const
