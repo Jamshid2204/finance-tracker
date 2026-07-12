@@ -222,14 +222,14 @@ export function PaymentDialog({ open, onOpenChange, payroll }: PaymentDialogProp
           </div>
         )}
 
-        {(action === "bonus" || action === "penalty" || action === "pay") && (
+        {(action === "bonus" || action === "penalty" || action === "advance" || action === "pay") && (
           <div className="space-y-2">
             <Label htmlFor="note">Izoh (ixtiyoriy)</Label>
             <input
               id="note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder={action === "bonus" ? "Bonus haqida izoh" : action === "penalty" ? "Jarima haqida izoh" : "To'lov haqida izoh"}
+              placeholder={action === "bonus" ? "Bonus haqida izoh" : action === "penalty" ? "Jarima haqida izoh" : action === "advance" ? "Avans haqida izoh" : "To'lov haqida izoh"}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
           </div>
