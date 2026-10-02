@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { AppLayout } from "@/components/layouts/app-layout"
@@ -18,9 +18,9 @@ import {
 } from "@/components/ui/table"
 import { Dialog, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useSession } from "@/hooks/use-session"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, formatNumber, parseFormattedNumber } from "@/lib/utils"
 import { toast } from "sonner"
-import { Pencil, Target, TrendingUp } from "lucide-react"
+import { Pencil, Target, TrendingUp, Clock } from "lucide-react"
 
 const MONTHS = [
   { value: "1", label: "Yanvar" },
@@ -37,19 +37,12 @@ const MONTHS = [
   { value: "12", label: "Dekabr" },
 ]
 
-async function calculateBonus(employeeId: string, month: number, year: number, quantity: number) {
-  const supabase = createClient()
-  const { data: target } = await supabase
-    .from("kpi_targets")
-    .select("*")
-    .eq("employee_id", employeeId)
-    .eq("month", month)
-    .eq("year", year)
-    .single()
-
-  if (!target) return 0
-  const excess = Math.max(0, quantity - Number(target.target_quantity))
-  return excess * Number(target.unit_price)
+function computeHours(attendance: any[]): number {
+  return attendance.reduce((sum, a) => {
+    if (!a.arrived_at || !a.left_at) return sum
+    const diff = (new Date(a.left_at).getTime() - new Date(a.arrived_at).getTime()) / 3600000
+    return sum + Math.max(0, diff)
+  }, 0)
 }
 
 export default function KPIPage() {
@@ -96,22 +89,36 @@ export default function KPIPage() {
     },
   })
 
+  const { data: attendance } = useQuery({
+    queryKey: ["attendance-month", month, year],
+    queryFn: async () => {
+      const start = `${year}-${String(month).padStart(2, "0")}-01`
+      const { data } = await supabase
+        .from("attendance")
+        .select("employee_id, arrived_at, left_at")
+        .gte("date", start)
+        .lt("date", `${year}-${String(Number(month) + 1).padStart(2, "0")}-01`)
+      return data || []
+    },
+  })
+
   const saveTarget = useMutation({
-    mutationFn: async ({ employeeId, targetQty, unitPrice }: any) => {
+    mutationFn: async ({ employeeId, targetHours, hourlyRate }: any) => {
       const existing = editTarget?.target
+      const payload = {
+        target_hours: Number(targetHours),
+        unit_price: Number(hourlyRate),
+        target_quantity: 0,
+      }
       if (existing?.id) {
-        const { error } = await supabase
-          .from("kpi_targets")
-          .update({ target_quantity: Number(targetQty), unit_price: Number(unitPrice) })
-          .eq("id", existing.id)
+        const { error } = await supabase.from("kpi_targets").update(payload).eq("id", existing.id)
         if (error) throw error
       } else {
         const { error } = await supabase.from("kpi_targets").insert({
           employee_id: employeeId,
           month: Number(month),
           year,
-          target_quantity: Number(targetQty),
-          unit_price: Number(unitPrice),
+          ...payload,
         })
         if (error) throw error
       }
@@ -125,22 +132,27 @@ export default function KPIPage() {
   })
 
   const saveResult = useMutation({
-    mutationFn: async ({ employeeId, quantity }: any) => {
+    mutationFn: async ({ employeeId, hoursWorked }: any) => {
       const existing = editResult?.result
-      const bonus = await calculateBonus(employeeId, Number(month), year, Number(quantity))
+      const target = (targets || []).find((t: any) => t.employee_id === employeeId)
+      const targetHours = target ? Number(target.target_hours) : Number((employees || []).find((e: any) => e.id === employeeId)?.monthly_target_hours || 0)
+      const rate = target ? Number(target.unit_price) : 0
+      const bonus = Math.max(0, Number(hoursWorked) - targetHours) * rate
+
+      const payload = {
+        hours_worked: Number(hoursWorked),
+        quantity_produced: 0,
+        bonus_amount: bonus,
+      }
       if (existing?.id) {
-        const { error } = await supabase
-          .from("kpi_results")
-          .update({ quantity_produced: Number(quantity), bonus_amount: bonus })
-          .eq("id", existing.id)
+        const { error } = await supabase.from("kpi_results").update(payload).eq("id", existing.id)
         if (error) throw error
       } else {
         const { error } = await supabase.from("kpi_results").insert({
           employee_id: employeeId,
           month: Number(month),
           year,
-          quantity_produced: Number(quantity),
-          bonus_amount: bonus,
+          ...payload,
         })
         if (error) throw error
       }
@@ -182,11 +194,20 @@ export default function KPIPage() {
     onError: (err) => toast.error((err as Error).message),
   })
 
+  const autoHoursByEmployee = (() => {
+    const map: Record<string, number> = {}
+    for (const a of attendance || []) {
+      const h = computeHours([a])
+      map[a.employee_id] = (map[a.employee_id] || 0) + h
+    }
+    return map
+  })()
+
   return (
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">KPI</h1>
+          <h1 className="text-2xl font-bold">KPI (ish vaqti)</h1>
           <div className="flex items-center gap-2">
             <Select
               options={MONTHS}
@@ -206,8 +227,8 @@ export default function KPIPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              Target va natijalar
+              <Clock className="h-5 w-5" />
+              Target va ishlangan soatlar
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -216,9 +237,9 @@ export default function KPIPage() {
                 <TableRow>
                   <TableHead>Xodim</TableHead>
                   <TableHead>Lavozim</TableHead>
-                  <TableHead>Target (dona)</TableHead>
-                  <TableHead>Dona narxi</TableHead>
-                  <TableHead>Ishlab chiqarilgan</TableHead>
+                  <TableHead>Target (soat)</TableHead>
+                  <TableHead>Soat narxi</TableHead>
+                  <TableHead>Ishlangan (soat)</TableHead>
                   <TableHead>Bonus</TableHead>
                   {isHR && <TableHead className="text-right">Amallar</TableHead>}
                 </TableRow>
@@ -234,15 +255,26 @@ export default function KPIPage() {
                   employees.map((emp: any) => {
                     const target = (targets || []).find((t: any) => t.employee_id === emp.id)
                     const result = (results || []).find((r: any) => r.employee_id === emp.id)
-                    const bonus = result ? Number(result.bonus_amount) : 0
+                    const targetHours = target ? Number(target.target_hours) : Number(emp.monthly_target_hours || 0)
+                    const rate = target ? Number(target.unit_price) : 0
+                    const autoHours = Math.round((autoHoursByEmployee[emp.id] || 0) * 100) / 100
+                    const hoursWorked = result ? Number(result.hours_worked) : autoHours
+                    const bonus = result ? Number(result.bonus_amount) : Math.max(0, autoHours - targetHours) * rate
 
                     return (
                       <TableRow key={emp.id}>
                         <TableCell className="font-medium">{emp.fullname}</TableCell>
                         <TableCell className="text-muted-foreground">{emp.position}</TableCell>
-                        <TableCell>{target ? Number(target.target_quantity) : "—"}</TableCell>
-                        <TableCell>{target ? formatCurrency(Number(target.unit_price)) + "/dona" : "—"}</TableCell>
-                        <TableCell>{result ? Number(result.quantity_produced) : "—"}</TableCell>
+                        <TableCell>{formatNumber(targetHours)} soat</TableCell>
+                        <TableCell>{rate > 0 ? formatCurrency(rate) + "/soat" : "—"}</TableCell>
+                        <TableCell>
+                          <span className={hoursWorked > targetHours ? "text-green-600 font-medium" : ""}>
+                            {formatNumber(hoursWorked)} soat
+                          </span>
+                          {result && Math.abs(hoursWorked - autoHours) > 0.01 && (
+                            <span className="text-xs text-muted-foreground ml-1">(avtomatik: {formatNumber(autoHours)})</span>
+                          )}
+                        </TableCell>
                         <TableCell className="font-semibold text-green-600">{formatCurrency(bonus)}</TableCell>
                         {isHR && (
                           <TableCell className="text-right">
@@ -294,8 +326,9 @@ export default function KPIPage() {
             </DialogHeader>
             <TargetForm
               target={editTarget.target}
-              onSave={(targetQty: number, unitPrice: number) =>
-                saveTarget.mutate({ employeeId: editTarget.employeeId, targetQty, unitPrice })
+              defaultHours={Number((employees || []).find((e: any) => e.id === editTarget.employeeId)?.monthly_target_hours || 160)}
+              onSave={(h: number, r: number) =>
+                saveTarget.mutate({ employeeId: editTarget.employeeId, targetHours: h, hourlyRate: r })
               }
               loading={saveTarget.isPending}
             />
@@ -308,12 +341,13 @@ export default function KPIPage() {
         {editResult && (
           <div>
             <DialogHeader>
-              <DialogTitle>{editResult.result ? "Natijani tahrirlash" : "Yangi natija"}</DialogTitle>
+              <DialogTitle>{editResult.result ? "Ishlangan soatni tuzatish" : "Ishlangan soatni kiritish"}</DialogTitle>
             </DialogHeader>
             <ResultForm
               result={editResult.result}
-              onSave={(quantity: number) =>
-                saveResult.mutate({ employeeId: editResult.employeeId, quantity })
+              autoHours={Math.round((autoHoursByEmployee[editResult.employeeId] || 0) * 100) / 100}
+              onSave={(h: number) =>
+                saveResult.mutate({ employeeId: editResult.employeeId, hoursWorked: h })
               }
               loading={saveResult.isPending}
             />
@@ -324,37 +358,39 @@ export default function KPIPage() {
   )
 }
 
-function TargetForm({ target, onSave, loading }: any) {
-  const [qty, setQty] = useState(String(target?.target_quantity || ""))
-  const [price, setPrice] = useState(String(target?.unit_price || ""))
+function TargetForm({ target, defaultHours, onSave, loading }: any) {
+  const [hours, setHours] = useState(String(target?.target_hours ?? defaultHours ?? 160))
+  const [rate, setRate] = useState(String(target?.unit_price || ""))
 
   return (
     <div className="space-y-4 mt-4">
       <div>
-        <label className="text-sm font-medium">Target (dona)</label>
-        <Input type="number" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="100" />
+        <label className="text-sm font-medium">Oylik target soat</label>
+        <Input type="number" value={hours} onChange={(e) => setHours(e.target.value)} placeholder="160" />
+        <p className="text-xs text-muted-foreground mt-1">Haftada bir kun dam olinadi (shanba)</p>
       </div>
       <div>
-        <label className="text-sm font-medium">Dona narxi (so'm)</label>
-        <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="5000" />
+        <label className="text-sm font-medium">Qo'shimcha soat narxi (so'm/soat)</label>
+        <Input type="number" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="10000" />
       </div>
-      <Button onClick={() => onSave(Number(qty), Number(price))} disabled={loading}>
+      <Button onClick={() => onSave(Number(hours), Number(rate))} disabled={loading}>
         {loading ? "Saqlanmoqda..." : "Saqlash"}
       </Button>
     </div>
   )
 }
 
-function ResultForm({ result, onSave, loading }: any) {
-  const [qty, setQty] = useState(String(result?.quantity_produced || ""))
+function ResultForm({ result, autoHours, onSave, loading }: any) {
+  const [hours, setHours] = useState(String(result?.hours_worked ?? autoHours ?? ""))
 
   return (
     <div className="space-y-4 mt-4">
       <div>
-        <label className="text-sm font-medium">Ishlab chiqarilgan mahsulot (dona)</label>
-        <Input type="number" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="150" />
+        <label className="text-sm font-medium">Ishlangan soat (oylik)</label>
+        <Input type="number" value={hours} onChange={(e) => setHours(e.target.value)} />
+        <p className="text-xs text-muted-foreground mt-1">Davomatdan avtomatik hisoblangan: {formatNumber(autoHours)} soat</p>
       </div>
-      <Button onClick={() => onSave(Number(qty))} disabled={loading}>
+      <Button onClick={() => onSave(Number(hours))} disabled={loading}>
         {loading ? "Saqlanmoqda..." : "Saqlash"}
       </Button>
     </div>

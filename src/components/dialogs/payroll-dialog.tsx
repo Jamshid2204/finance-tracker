@@ -2,11 +2,12 @@
 
 import { Dialog, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PayrollForm } from "@/components/forms/payroll-form"
-import { PayrollFormData, calculateFinalSalary } from "@/lib/validations/payroll"
+import { PayrollFormData } from "@/lib/validations/payroll"
 import { Payroll, Employee } from "@/types"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { useQueryClient, useQuery } from "@tanstack/react-query"
+import { getKpiInfo, kpiFinalSalary } from "@/lib/kpi"
 
 interface PayrollDialogProps {
   open: boolean
@@ -28,7 +29,14 @@ export function PayrollDialog({ open, onOpenChange, payroll }: PayrollDialogProp
 
   const handleSubmit = async (data: PayrollFormData) => {
     try {
-      const final_salary = calculateFinalSalary(data.base_salary, data.bonus || 0, data.penalty || 0, 0)
+      const kpi = await getKpiInfo(supabase, data.employee_id, data.month, data.year)
+      const final_salary = kpiFinalSalary(
+        data.base_salary,
+        kpi.percentage,
+        data.bonus || 0,
+        data.penalty || 0,
+        0
+      )
 
       if (payroll) {
         const { error } = await supabase
@@ -44,7 +52,9 @@ export function PayrollDialog({ open, onOpenChange, payroll }: PayrollDialogProp
           .insert({ ...data, final_salary })
 
         if (error) throw error
-        toast.success("Oylik qo'shildi")
+        toast.success(
+          `Oylik qo'shildi (KPI ${Math.round(kpi.percentage * 100)}%: ${(final_salary / (data.base_salary || 1) * 100).toFixed(0)}% maosh)`
+        )
 
         fetch("/api/notify", {
           method: "POST",

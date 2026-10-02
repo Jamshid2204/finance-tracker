@@ -4,6 +4,14 @@ import { notifyAttendance } from "@/services/telegram.service"
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
+function uzTime(iso: string | Date): string {
+  return new Date(iso).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" })
+}
+
+function uzDate(d: Date = new Date()): string {
+  return d.toLocaleDateString("sv-SE", { timeZone: "Asia/Tashkent" })
+}
+
 async function sendTelegram(chatId: number, text: string, replyMarkup?: any) {
   if (!BOT_TOKEN) return
   const body: any = { chat_id: chatId, text, parse_mode: "HTML" }
@@ -51,7 +59,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true })
     }
 
-    const today = new Date().toISOString().split("T")[0]
+    const today = uzDate()
 
     if (message === "/start") {
       await sendTelegram(
@@ -71,7 +79,7 @@ export async function POST(request: Request) {
         .maybeSingle()
 
       if (existing?.arrived_at) {
-        const t = new Date(existing.arrived_at).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })
+        const t = uzTime(existing.arrived_at)
         await sendTelegram(chatId, `ℹ️ Siz allaqachon belgilagansiz.\n\nKelgan vaqt: ${t}\nSana: ${today}`, attendanceKeyboard())
         return NextResponse.json({ ok: true })
       }
@@ -83,7 +91,7 @@ export async function POST(request: Request) {
 
       if (error) throw error
 
-      const t = new Date(now).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })
+      const t = uzTime(now)
       await notifyAttendance(employee.fullname, "arrived", t)
       await sendTelegram(chatId, `✅ ${employee.fullname}, kelishingiz belgilandi.\n\nVaqt: ${t}\nSana: ${today}`, attendanceKeyboard())
       return NextResponse.json({ ok: true })
@@ -103,7 +111,7 @@ export async function POST(request: Request) {
       }
 
       if (existing.left_at) {
-        const t = new Date(existing.left_at).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })
+        const t = uzTime(existing.left_at)
         await sendTelegram(chatId, `ℹ️ Siz allaqachon ketganingizni belgilagansiz.\n\nKetgan vaqt: ${t}\nSana: ${today}`, attendanceKeyboard())
         return NextResponse.json({ ok: true })
       }
@@ -112,7 +120,7 @@ export async function POST(request: Request) {
       const { error } = await supabase.from("attendance").update({ left_at: now }).eq("id", existing.id)
       if (error) throw error
 
-      const t = new Date(now).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })
+      const t = uzTime(now)
       await notifyAttendance(employee.fullname, "left", t)
       await sendTelegram(chatId, `👋 ${employee.fullname}, ketishingiz belgilandi.\n\nVaqt: ${t}\nSana: ${today}`, attendanceKeyboard())
       return NextResponse.json({ ok: true })

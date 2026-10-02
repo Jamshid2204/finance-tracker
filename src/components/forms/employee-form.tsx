@@ -32,6 +32,7 @@ export function EmployeeForm({ defaultValues, onSubmit, onCancel, loading }: Emp
       department: "",
       salary: 0,
       status: "active",
+      monthly_target_hours: 160,
     },
   })
 
@@ -67,6 +68,13 @@ export function EmployeeForm({ defaultValues, onSubmit, onCancel, loading }: Emp
         <Label htmlFor="salary">Maosh (so'm)</Label>
         <Input id="salary" type="number" {...register("salary")} placeholder="5000000" />
         {errors.salary && <p className="text-sm text-destructive">{errors.salary.message}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="monthly_target_hours">Oylik ish soati (target)</Label>
+        <Input id="monthly_target_hours" type="number" {...register("monthly_target_hours")} placeholder="160" />
+        <p className="text-sm text-muted-foreground">Haftada bir kun dam olinadi (shanba). 160 soat ≈ 20 ish kuni × 8 soat.</p>
+        {errors.monthly_target_hours && <p className="text-sm text-destructive">{errors.monthly_target_hours.message}</p>}
       </div>
 
       <div className="space-y-2">

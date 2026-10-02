@@ -9,6 +9,7 @@ export const employeeSchema = z.object({
   status: z.enum(["active", "inactive"]).default("active"),
   telegram_chat_id: z.string().optional().nullable(),
   avatar: z.string().optional().nullable(),
+  monthly_target_hours: z.coerce.number().min(1, "Kamida 1 soat").default(160),
 })
 
 export type EmployeeFormData = z.infer<typeof employeeSchema>

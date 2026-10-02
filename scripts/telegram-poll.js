@@ -40,6 +40,14 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`
 let lastUpdateId = 0
 
+function uzTime(iso) {
+  return new Date(iso).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" })
+}
+
+function uzDate(d = new Date()) {
+  return d.toLocaleDateString("sv-SE", { timeZone: "Asia/Tashkent" })
+}
+
 // Test Supabase connection
 async function testConnection() {
   const { data, error } = await supabase.from("employees").select("id").limit(1)
@@ -118,7 +126,7 @@ async function handleMessage(msg) {
 
   console.log(`[XODIM TOPILDI] id=${employee.id}, name=${employee.fullname}`)
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = uzDate()
 
   if (text === "/start") {
     await sendMessage(
@@ -139,7 +147,7 @@ async function handleMessage(msg) {
       .maybeSingle()
 
     if (existing?.arrived_at) {
-      const oldTime = new Date(existing.arrived_at).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })
+      const oldTime = uzTime(existing.arrived_at)
       await sendMessage(chatId, `ℹ️ Siz allaqachon belgilagansiz.\n\nKelgan vaqt: ${oldTime}\nSana: ${today}`, attendanceKeyboard())
       return
     }
@@ -156,7 +164,7 @@ async function handleMessage(msg) {
     }
 
     console.log("[KELISH] muvaffaqiyatli yozildi")
-    const time = new Date(now).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })
+    const time = uzTime(now)
     await notifyAdmins(employee.fullname, "arrived", time)
     await sendMessage(chatId, `✅ ${employee.fullname}, kelishingiz belgilandi.\n\nVaqt: ${time}\nSana: ${today}`, attendanceKeyboard())
     return
@@ -178,7 +186,7 @@ async function handleMessage(msg) {
     }
 
     if (existing.left_at) {
-      const oldTime = new Date(existing.left_at).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })
+      const oldTime = uzTime(existing.left_at)
       await sendMessage(chatId, `ℹ️ Siz allaqachon ketganingizni belgilagansiz.\n\nKetgan vaqt: ${oldTime}\nSana: ${today}`, attendanceKeyboard())
       return
     }
@@ -196,7 +204,7 @@ async function handleMessage(msg) {
     }
 
     console.log("[KETISH] muvaffaqiyatli yozildi")
-    const time = new Date(now).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })
+    const time = uzTime(now)
     await notifyAdmins(employee.fullname, "left", time)
     await sendMessage(chatId, `👋 ${employee.fullname}, ketishingiz belgilandi.\n\nVaqt: ${time}\nSana: ${today}`, attendanceKeyboard())
   }

@@ -18,6 +18,7 @@ export interface Employee {
   status: "active" | "inactive"
   telegram_chat_id: string | null
   avatar: string | null
+  monthly_target_hours: number
   created_at: string
 }
 

@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Employee } from "@/types"
-import { Loader2 } from "lucide-react"
-import { getCurrentMonth, getCurrentYear, formatNumber, parseFormattedNumber } from "@/lib/utils"
+import { Loader2, Info } from "lucide-react"
+import { getCurrentMonth, getCurrentYear, formatNumber, parseFormattedNumber, formatCurrency } from "@/lib/utils"
 import { useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase/client"
+import { getKpiInfo } from "@/lib/kpi"
 
 interface PayrollFormProps {
   employees: Employee[]
@@ -37,8 +39,13 @@ export function PayrollForm({ employees, onSubmit, onCancel, loading }: PayrollF
     },
   })
 
+  const supabase = createClient()
   const employeeId = watch("employee_id")
+  const month = watch("month")
+  const year = watch("year")
   const [baseStr, setBaseStr] = useState("")
+  const [kpi, setKpi] = useState<{ targetHours: number; hoursWorked: number; percentage: number } | null>(null)
+  const [kpiLoading, setKpiLoading] = useState(false)
 
   useEffect(() => {
     if (!employeeId) return
@@ -48,6 +55,31 @@ export function PayrollForm({ employees, onSubmit, onCancel, loading }: PayrollF
       setBaseStr(formatNumber(employee.salary))
     }
   }, [employeeId, employees, setValue])
+
+  useEffect(() => {
+    let mounted = true
+    if (!employeeId || !month || !year) {
+      setKpi(null)
+      return
+    }
+    setKpiLoading(true)
+    getKpiInfo(supabase, employeeId, Number(month), Number(year))
+      .then((info) => {
+        if (mounted) setKpi(info)
+      })
+      .catch(() => {
+        if (mounted) setKpi(null)
+      })
+      .finally(() => {
+        if (mounted) setKpiLoading(false)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [employeeId, month, year, supabase])
+
+  const baseSalary = parseFormattedNumber(baseStr)
+  const estimatedSalary = kpi ? Math.round(baseSalary * kpi.percentage) : baseSalary
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -91,6 +123,41 @@ export function PayrollForm({ employees, onSubmit, onCancel, loading }: PayrollF
         />
         {errors.base_salary && <p className="text-sm text-destructive">{errors.base_salary.message}</p>}
       </div>
+
+      {employeeId && month && year && (
+        <div className="rounded-lg border bg-muted p-3 space-y-1 text-sm">
+          {kpiLoading ? (
+            <p className="text-muted-foreground flex items-center gap-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> KPI hisoblanmoqda...
+            </p>
+          ) : kpi ? (
+            <>
+              <div className="flex justify-between">
+                <span>Target soat</span>
+                <span>{formatNumber(kpi.targetHours)} soat</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Ishlangan soat</span>
+                <span>{formatNumber(kpi.hoursWorked)} soat</span>
+              </div>
+              <div className="flex justify-between font-medium">
+                <span>Bajarilgan foiz</span>
+                <span className={kpi.percentage >= 1 ? "text-green-600" : "text-amber-600"}>
+                  {Math.round(kpi.percentage * 100)}%
+                </span>
+              </div>
+              <div className="flex justify-between border-t pt-1 font-semibold">
+                <span>Hisoblangan oylik</span>
+                <span>{formatCurrency(estimatedSalary)}</span>
+              </div>
+            </>
+          ) : (
+            <p className="text-muted-foreground flex items-center gap-2">
+              <Info className="h-3.5 w-3.5" /> KPI ma'lumoti topilmadi, to'liq oylik hisoblanadi
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="flex justify-end gap-3 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>
